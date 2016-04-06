@@ -17,9 +17,9 @@ public class StudentBot {
 	private String difficulty;
 	private Map<Integer, String> learnItemsList;
 	private Map<Integer, Integer> wordStrengths = new HashMap<Integer, Integer>();
-	private int numberOfLearntWords = 0;
 	private AwardPool ownAwardPool;
 	
+	private int numberOfLearntWords = 0;
 	private int maximumQuestionsSolvedPerDay = 0;
 	private int chanceToContinueTheNextDay = 0;
 	private int enoughNewWordsForDailyStreak = 0;
@@ -31,7 +31,10 @@ public class StudentBot {
 	private int daysUsedForPractice = 0;
 	private int daysSkippedFromPractice = 0;
 	private int pointsAccumulated = 0;
-	private Writer writer;
+	private Writer generalWriter, statisticsWriter2;
+	private int chanceBuffer = 0;
+	private int correctAnswers = 0;
+	private int incorrectAnswers = 0;
 	
 	
 	public StudentBot(Map<Integer, String> learnItemsList, String attitudeToTest, String difficultyToUse, String percentageOfCorrectness, String proportionOfLearningNewWordsAgainstPractice) {
@@ -46,12 +49,23 @@ public class StudentBot {
 		
 		initializeBotPerformance();
 		ownAwardPool = new AwardPool();
-		startLogger();
 	}
 
-	private void startLogger() {
+	private void startGeneralLogger() {
 		try {
-			writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("ExperimentResults.txt"), "utf-8"));
+			generalWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("GeneralExperimentResults.txt", true), "utf-8"));
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	private void startStatisticsLogger() {
+		try {
+			statisticsWriter2 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(difficulty+"_"+attitude+"_"+smartness+"_"+willToLearnNewWords.replace("/","-")+"_"+"ExperimentResults.txt", true), "utf-8"));
 		} catch (UnsupportedEncodingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -119,16 +133,18 @@ public class StudentBot {
 	}
 	
 	public void performStudySequence(int numberOflengthOfStudySequence) {
+		startGeneralLogger();
+		startStatisticsLogger();
+
 		try {
-			writer.write("*******************STARTING EXPERIMENT***************************"+System.lineSeparator());
-			writer.write("Learn Item list size: "+learnItemsList.size()+System.lineSeparator());
-			writer.write(System.lineSeparator());
-			writer.write("Student profile:"+System.lineSeparator());
-			writer.write(">>>>>>> Attitude: "+attitude+System.lineSeparator());
-			writer.write(">>>>>>> Smartness: "+smartness+System.lineSeparator());
-			writer.write(">>>>>>> Willingness to learn new words: "+willToLearnNewWords+System.lineSeparator());
-			writer.write(">>>>>>> Choosen difficulty: "+difficulty+System.lineSeparator());
-			writer.write("*****************************************************************"+System.lineSeparator());
+			generalWriter.write("*******************STARTING EXPERIMENT***************************"+System.lineSeparator());
+			generalWriter.write("Learn Item list size: "+learnItemsList.size()+System.lineSeparator());
+			generalWriter.write(System.lineSeparator());
+			generalWriter.write("Student profile:"+System.lineSeparator());
+			generalWriter.write(">>>>>>> Attitude: "+attitude+System.lineSeparator());
+			generalWriter.write(">>>>>>> Smartness: "+smartness+System.lineSeparator());
+			generalWriter.write(">>>>>>> Willingness to learn new words: "+willToLearnNewWords+System.lineSeparator());
+			generalWriter.write(">>>>>>> Choosen difficulty: "+difficulty+System.lineSeparator());
 
 			int keyOfTheActualQuestion = 0;
 			String actualQuestion = "";
@@ -142,39 +158,42 @@ public class StudentBot {
 			
 			//If completely new experiment, first teach the bot a few words
 			if (currentDay == 0) {
-				writer.write(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"+System.lineSeparator());
-				writer.write("Starting first day. Learning some new words"+System.lineSeparator());
+				//writer.write(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"+System.lineSeparator());
+				//writer.write("Starting first day. Learning some new words"+System.lineSeparator());
 				for (questionsAttemptedTheGivenDay = 0; questionsAttemptedTheGivenDay <= maximumQuestionsSolvedPerDay; questionsAttemptedTheGivenDay++) {
 					if (numberOfLearntWords == learnItemsList.size()) {
 						break;
 					}
-					writer.write("Question's sequence number: "+questionSequenceNumber+System.lineSeparator());
+					//writer.write("Question's sequence number: "+questionSequenceNumber+System.lineSeparator());
 					keyOfTheActualQuestion = getQuestion("newWords");
 					actualQuestion = learnItemsList.get(keyOfTheActualQuestion);
 					wordToLearn = actualQuestion.split(":")[0];
 					expectedAnswer = actualQuestion.split(":")[1];
 					
 					learn(keyOfTheActualQuestion);
-					writer.write("YEAH, I've learnt a new item: "+learnItemsList.get(keyOfTheActualQuestion)+System.lineSeparator());
+					//writer.write("YEAH, I've learnt a new item: "+learnItemsList.get(keyOfTheActualQuestion)+System.lineSeparator());
 					
+					chanceBuffer = chanceToGiveCorrectAnswer;
+					chanceToGiveCorrectAnswer = factorInStrengthOfWord(keyOfTheActualQuestion, chanceToGiveCorrectAnswer);
 					answer = answer(actualQuestion);
-					writer.write(System.lineSeparator());
+					chanceToGiveCorrectAnswer = chanceBuffer;
+					//writer.write(System.lineSeparator());
 					
 					correctAnswersTheGivenDay = bookResults(answer, expectedAnswer, keyOfTheActualQuestion, correctAnswersTheGivenDay);
 					
 					pointsAccumulated += calculatePoints(keyOfTheActualQuestion);
 				}
 			}
-			writer.write(System.lineSeparator());
-			writer.write(System.lineSeparator());
-			writer.write(System.lineSeparator());
-			writer.write(">>>>>>>>>>>>>>>>>>>>>>>>>>>> 2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"+System.lineSeparator());
-			writer.write("Starting real sequence"+System.lineSeparator());
+			//writer.write(System.lineSeparator());
+			//writer.write(System.lineSeparator());
+			//writer.write(System.lineSeparator());
+			//writer.write(">>>>>>>>>>>>>>>>>>>>>>>>>>>> 2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"+System.lineSeparator());
+			//writer.write("Starting real sequence"+System.lineSeparator());
 
 			while (currentDay < numberOflengthOfStudySequence) {
-				writer.write("+++++++++++++++++++++++++++++++++++++++++++++++Deciding if I want to learn today++++++++++++++++++++++++++++++++++++++++++++++++++"+System.lineSeparator());
+				//writer.write("+++++++++++++++++++++++++++++++++++++++++++++++Deciding if I want to learn today++++++++++++++++++++++++++++++++++++++++++++++++++"+System.lineSeparator());
 				if (learningTheGivenDay()) {
-					writer.write("YES! Let's GO!"+System.lineSeparator());
+					//writer.write("YES! Let's GO!"+System.lineSeparator());
 					daysUsedForPractice++;
 	
 					for (questionsAttemptedTheGivenDay = 0; questionsAttemptedTheGivenDay <= maximumQuestionsSolvedPerDay; questionsAttemptedTheGivenDay++) {					
@@ -189,11 +208,13 @@ public class StudentBot {
 							
 							//If it's a new learn item (Strength is 0), we simulate that the bot learns the word (ergo: we set Strength from 0 to 1)
 							learn(keyOfTheActualQuestion);
-							writer.write("YEAH, I've learnt a new item: "+learnItemsList.get(keyOfTheActualQuestion)+System.lineSeparator());
+							//writer.write("YEAH, I've learnt a new item: "+learnItemsList.get(keyOfTheActualQuestion)+System.lineSeparator());
 							
-							
+							chanceBuffer = chanceToGiveCorrectAnswer;
+							chanceToGiveCorrectAnswer = factorInStrengthOfWord(keyOfTheActualQuestion, chanceToGiveCorrectAnswer);
 							answer = answer(actualQuestion);
-							writer.write(System.lineSeparator());
+							chanceToGiveCorrectAnswer = chanceBuffer;
+							//writer.write(System.lineSeparator());
 							
 							correctAnswersTheGivenDay = bookResults(answer, expectedAnswer, keyOfTheActualQuestion, correctAnswersTheGivenDay);
 	
@@ -204,8 +225,11 @@ public class StudentBot {
 							wordToLearn = actualQuestion.split(":")[0];
 							expectedAnswer = actualQuestion.split(":")[1];
 	
+							chanceBuffer = chanceToGiveCorrectAnswer;
+							chanceToGiveCorrectAnswer = factorInStrengthOfWord(keyOfTheActualQuestion, chanceToGiveCorrectAnswer);
 							answer = answer(actualQuestion);
-							writer.write(System.lineSeparator());
+							chanceToGiveCorrectAnswer = chanceBuffer;
+							//writer.write(System.lineSeparator());
 							
 							correctAnswersTheGivenDay = bookResults(answer, expectedAnswer, keyOfTheActualQuestion, correctAnswersTheGivenDay);
 							
@@ -213,27 +237,34 @@ public class StudentBot {
 					}  //End of a question
 	
 				} else {
-					writer.write("NO! I hate this!"+System.lineSeparator());
-					writer.write("And so I just fucked up the following StreaK: "+consecutiveStreakDaysCompleted+System.lineSeparator());
+					//writer.write("NO! I hate this!"+System.lineSeparator());
+					//writer.write("And so I just fucked up the following StreaK: "+consecutiveStreakDaysCompleted+System.lineSeparator());
 					daysSkippedFromPractice++;
 					consecutiveStreakDaysCompleted = 0;	
 				}
 				currentDay++;
 			} //End of a day
-			writer.write(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>FINISH<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"+System.lineSeparator());
-			writer.write("Points accumulated: "+pointsAccumulated+System.lineSeparator());
-			writer.write("Longest Streak: "+longestStreak+System.lineSeparator());
-			writer.write("Days spent with practice: "+daysUsedForPractice+System.lineSeparator());
-			writer.write("Days skipped from practice: "+daysSkippedFromPractice+System.lineSeparator());
-			writer.write("The following awards were accumulated: "+ownAwardPool.toString());
+			statisticsWriter2.write(pointsAccumulated+System.lineSeparator());
+			generalWriter.write("******************FINISHED EXPERIMENT***********************************************"+System.lineSeparator());
+			generalWriter.write("Points accumulated:	"+pointsAccumulated+System.lineSeparator());
+			generalWriter.write("Correct answers:	"+correctAnswers+System.lineSeparator());
+			generalWriter.write("Incorrect answers:	"+incorrectAnswers+System.lineSeparator());
+			generalWriter.write("Longest Streak:	"+longestStreak+System.lineSeparator());
+			generalWriter.write("Days spent with practice:	"+daysUsedForPractice+System.lineSeparator());
+			generalWriter.write("Days skipped from practice:	"+daysSkippedFromPractice+System.lineSeparator());
+			generalWriter.write("The following awards were accumulated:	"+ownAwardPool.toString());
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			try {writer.close();} catch (Exception ex) {/*ignore*/}
 		}
-		
-	} //end of COMPLETE study sequence
+		try {generalWriter.close(); statisticsWriter2.close();} catch (Exception ex) {/*ignore*/}
+	}//end of COMPLETE study sequence
 	
+
+	private int factorInStrengthOfWord(int keyOfTheActualQuestion, int generalChanceToGiveCorrectAnswer) {
+		int strengthModifier = wordStrengths.get(keyOfTheActualQuestion);
+		return generalChanceToGiveCorrectAnswer+strengthModifier;
+	}
+
 	private int bookResults(String answer, String expectedAnswer, int keyOfNextQuestion, int correctAnswersTheGivenDay) {
 		if (answer.equals(expectedAnswer)) {						
 			correctAnswersTheGivenDay++;
@@ -345,10 +376,13 @@ public class StudentBot {
 		try {
 			int randomNumber = (int)Math.round(Math.random()*100);
 			if (randomNumber < chanceToGiveCorrectAnswer) {
-				writer.write("I think it's: "+question.split(":")[1]+System.lineSeparator());
+//				writer.write("I think it's: "+question.split(":")[1]+System.lineSeparator());
+				generalWriter.write("");
+				correctAnswers++;
 				return question.split(":")[1];				
 			} else {
-				writer.write("I don't know, because I'm just an annoying fictional character"+System.lineSeparator());
+//				writer.write("I don't know, because I'm just an annoying fictional character"+System.lineSeparator());
+				incorrectAnswers++;
 				return "I don't know, because I'm just an annoying fictional character";
 			} 
 		} catch (IOException e) {
@@ -366,14 +400,15 @@ public class StudentBot {
 				while (wordStrengths.get(keyOfRandomQuestion) != 0) {
 					keyOfRandomQuestion = Math.abs((int)(Math.random() * this.learnItemsList.size()));				
 				}
-				writer.write("What does this mean: "+learnItemsList.get(keyOfRandomQuestion).split(":")[0]+"?"+System.lineSeparator());
+//				writer.write("What does this mean: "+learnItemsList.get(keyOfRandomQuestion).split(":")[0]+"?"+System.lineSeparator());
+				generalWriter.write("");
 				return keyOfRandomQuestion;
 			} else {
 				keyOfRandomQuestion = Math.abs((int)Math.round(Math.random()*this.learnItemsList.size()-1));
 				while (wordStrengths.get(keyOfRandomQuestion) == 0) {
 					keyOfRandomQuestion = Math.abs((int)(Math.random() * this.learnItemsList.size()));				
 				}
-				writer.write("What does this mean: "+learnItemsList.get(keyOfRandomQuestion).split(":")[0]+"?"+System.lineSeparator());
+//				writer.write("What does this mean: "+learnItemsList.get(keyOfRandomQuestion).split(":")[0]+"?"+System.lineSeparator());
 				return keyOfRandomQuestion;
 			}
 		} catch (IOException e) {
